@@ -3,3 +3,6 @@
 !.gitattributes
 !README.md
 !demo.mp4
+!trafficcounter_2stage_web/
+trafficcounter_2stage_web/*
+!trafficcounter_2stage_web/README.md
