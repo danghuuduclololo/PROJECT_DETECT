@@ -1,49 +1,42 @@
-# PROJECT_DETECT
+# TrafficCounter 2-Stage Web
 
-Repo nay dung de gioi thieu du an `PROJECT_DETECT` tren GitHub bang 2 thanh phan chinh:
+Ứng dụng web đếm xe offline theo pipeline 2-stage:
 
-- `README.md`: mo ta du an, cach tai source code va cach chay.
-- `demo.mp4`: video demo nhanh de nha tuyen dung xem ngay.
+1. Stage-1 detector: phát hiện và tracking 5 họ xe thô (`xe_con`, `xe_may`, `xe_khach_bus`, `xe_tai`, `container`).
+2. Stage-2 classifier: phân loại sâu hơn cho các họ khó để ra nhóm xe cuối.
+3. Temporal fusion: gom phiếu theo `track_id` qua nhiều frame để ổn định nhãn.
+4. Tripwire / gate transition: chỉ đếm khi xe đi qua line hoặc gate hợp lệ.
+5. Web dashboard: upload video, theo dõi tiến độ, xem lịch sử, tổng hợp theo ngày, xuất Excel hoặc CSV.
 
-Source code day du, model weights, config va cac tai nguyen nang duoc dat trong Google Drive:
+## Repo này chứa gì
 
-- Google Drive: https://drive.google.com/drive/folders/1-7qO1XDZ78QowVs7UlTEfp6M_wVuZZwt?usp=sharing
+Repo GitHub nên chỉ chứa:
 
-## Du an nay la gi
+- Source code.
+- File cấu hình trong `configs/`.
+- Hướng dẫn cài đặt và chạy.
 
-`PROJECT_DETECT` la ung dung web dem xe theo pipeline 2-stage:
+Repo GitHub không nên chứa:
 
-1. Stage-1 detector: phat hien va tracking 5 ho xe thô.
-2. Stage-2 classifier: phan loai sau hon cho cac nhom xe kho.
-3. Temporal fusion: on dinh nhan theo nhieu frame.
-4. Tripwire / gate transition: chi dem khi xe di qua line hop le.
-5. Web dashboard: upload video, theo doi tien do, xem lich su, xuat bao cao.
-
-## Repo GitHub nay chua gi
-
-- `README.md`
-- `demo.mp4`
-
-## Nhung gi khong dua len GitHub
-
-De repo gon nhe hon, cac thanh phan sau khong dat tren GitHub hoac duoc dat trong Google Drive:
-
-- Source code day du.
 - Model weights `.pt`.
+- Video test và video lịch sử.
 - Dataset train.
-- Virtual environment.
-- Database runtime.
-- Video lich su va file trung gian khi xu ly.
+- Virtual environment như `.venv/`, `.venv-1/`, `env/`.
+- Database sinh ra khi chạy.
 
-## Cach lay source code va chay local
+Các file nặng được đặt ở Google Drive:
 
-1. Mo link Google Drive ben tren.
-2. Tai goi source code cua du an ve may va giai nen.
-3. Mo thu muc code `trafficcounter_2stage_web`.
-4. Tai them model neu trong goi code chua kem san.
-5. Lam theo cac buoc ben duoi de cai dat va chay.
+- Google Drive assets: https://drive.google.com/drive/folders/1-7qO1XDZ78QowVs7UlTEfp6M_wVuZZwt?usp=sharing
 
-## Cau truc toi thieu sau khi tai code va model
+Trong Drive nên có ít nhất:
+
+- Các model weights cần thiết.
+- Video demo để test nhanh.
+- Nếu cần, thêm file cấu hình mẫu hoặc bản backup dữ liệu minh họa.
+
+## Cấu trúc cần có sau khi tải assets từ Drive
+
+Sau khi tải code từ GitHub ZIP và tải assets từ Google Drive, thư mục làm việc tối thiểu nên có dạng:
 
 ```text
 trafficcounter_2stage_web/
@@ -61,19 +54,19 @@ trafficcounter_2stage_web/
 │   │   └── best.pt
 │   └── cls_container/
 │       └── best.pt
-└── web/
+└── demo.mp4  # co the de o bat ky dau, day chi la goi y de test nhanh
 ```
 
-App mac dinh doc model tu cac duong dan sau:
+Model mặc định đang được app sử dụng nằm trong `configs/pipeline.yaml`:
 
 - `models/detector/best.pt`
 - `models/cls_bus/best.pt`
 - `models/cls_truck/best.pt`
 - `models/cls_container/best.pt`
 
-Neu ban doi ten model, can sua lai `configs/pipeline.yaml` trong source code.
+Nếu bạn đổi tên file model, cần sửa lại đường dẫn tương ứng trong `configs/pipeline.yaml`.
 
-## Cai dat
+## Cài đặt
 
 ### Windows
 
@@ -97,11 +90,27 @@ python3 -m pip install -r requirements.txt
 cp .env.example .env
 ```
 
-## Chay ung dung
+## Cấu hình môi trường
 
-Can 2 terminal rieng.
+File `.env.example` đã có cấu hình local mặc định với SQLite:
 
-### Terminal 1: web app
+```text
+DATABASE_URL=sqlite:///./data/traffic.db
+PORT=8000
+FLASK_DEBUG=0
+MAX_PARALLEL_JOBS=2
+```
+
+Khi chạy local, bạn có thể dùng gần như nguyên bản file này. Nếu chưa có file database, app sẽ tự tạo bảng khi khởi động.
+
+## Chạy ứng dụng
+
+App cần 2 tiến trình riêng:
+
+1. Web server để upload video và xem dashboard.
+2. Worker để nhận job và chạy pipeline AI.
+
+### Terminal 1: chạy web
 
 Windows:
 
@@ -119,13 +128,13 @@ source .venv/bin/activate
 python3 main.py
 ```
 
-Mac dinh app chay tai:
+Mặc định app in ra địa chỉ web, thường là:
 
 ```text
 http://127.0.0.1:8001
 ```
 
-### Terminal 2: worker
+### Terminal 2: chạy worker
 
 Windows:
 
@@ -143,32 +152,61 @@ source .venv/bin/activate
 python3 worker.py
 ```
 
-Neu khong chay `worker.py`, job upload se dung o trang thai `queued`.
+Nếu chỉ chạy `main.py` mà không chạy `worker.py`, job sẽ đứng ở trạng thái `queued`.
 
-## Dung video demo
+## Test nhanh bằng video demo
 
-Video `demo.mp4` trong repo nay dung de xem nhanh ket qua demo.
+1. Tải `demo.mp4` từ Google Drive ở trên.
+2. Mở web app.
+3. Upload `demo.mp4`.
+4. Chọn file config JSON phù hợp trong `configs/`.
+5. Bấm bắt đầu.
+6. Theo dõi tiến độ ở dashboard hoặc trang chi tiết job.
 
-Ban co 2 cach dung:
+Lưu ý: `demo.mp4` không bắt buộc phải nằm đúng ở thư mục gốc repo. Bạn có thể để ở đâu cũng được, miễn là upload được qua giao diện web.
 
-1. Tai truc tiep `demo.mp4` tu repo nay.
-2. Hoac mo tu Google Drive neu ban muon lay them cac video khac.
+## Chạy với video thật
 
-Sau do:
+1. Đặt file cấu hình camera/gate vào `configs/` nếu chưa có.
+2. Vào web app và upload video.
+3. Chọn config JSON tương ứng.
+4. Có thể nhập tay ngày giờ hoặc để OCR đọc từ `clock_roi`.
+5. Bấm bắt đầu.
+6. Sau khi xử lý xong, xuất Excel hoặc CSV ZIP từ giao diện.
 
-1. Mo web app.
-2. Upload `demo.mp4`.
-3. Chon file config JSON phu hop trong `configs/`.
-4. Bat dau xu ly va theo doi tien do.
+## Dataset build cho 2-stage
 
-## Luu y cho nha tuyen dung
+### Build detector 5 lớp từ dataset 13 lớp
 
-Repo nay duoc giu o dang showcase de de xem nhanh.
+```bash
+cd /path/to/trafficcounter_2stage_web
+PYTHONPATH=. python3 scripts/build_stage1_dataset.py \
+	--source /path/to/fine_yolo_dataset \
+	--output datasets/det_5cls \
+	--classes-config configs/classes.yaml
+```
 
-- Video demo co san trong repo.
-- Huong dan chay du an co trong README.
-- Source code va tai nguyen nang duoc de trong Google Drive de tranh lam repo qua lon.
+### Build classifier crops
 
-## Lien ket
+```bash
+python3 scripts/build_stage2_crops.py \
+	--source /path/to/fine_yolo_dataset \
+	--output datasets \
+	--classes-config configs/classes.yaml
+```
 
-- Demo va assets: https://drive.google.com/drive/folders/1-7qO1XDZ78QowVs7UlTEfp6M_wVuZZwt?usp=sharing
+## Lỗi thường gặp
+
+| Thông báo | Cách xử lý |
+|-----------|------------|
+| `command not found: python` | Dùng `python3` thay cho `python` trên macOS hoặc Linux. |
+| `No such file or directory: models/.../best.pt` | Bạn chưa tải model weights từ Google Drive hoặc đặt sai thư mục. |
+| Job đứng ở `queued` | Bạn chưa chạy `python worker.py` ở terminal thứ hai. |
+| `Address already in use` | Đổi cổng bằng biến môi trường `PORT` hoặc tắt tiến trình cũ. |
+| Import lỗi sau khi cài | Kích hoạt đúng virtualenv rồi cài lại `requirements.txt`. |
+
+## Ghi chú
+
+- Repo này không kèm model weights trong Git.
+- Repo này không kèm video lịch sử đã xử lý.
+- Nếu muốn dùng schema camera mới có `gate_transition`, tham khảo `configs/example_camera_config.json`.
